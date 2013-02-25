@@ -1,8 +1,8 @@
 {
-  "name": "Concorde",
+  "name": "concorde",
   "version": "0.1.0",
-  "description": "Client-side RESTful router",
-  "main": "concorde.min.js",
+  "description": "The Ultra-RESTful Microrouter for the Browser.",
+  "main": "src/concorde.js",
   "directories": {
     "test": "test"
   },
