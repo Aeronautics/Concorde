@@ -1,0 +1,76 @@
+<!doctype html5>
+<meta charset=utf-8>
+<script src="../lib/q.js"></script>
+<script src="../../src/concorde.js"></script>
+<script>
+    var router = new Concorde.Router(location.href);
+    
+    router.aimWindow(window)
+          .areasFrom(document.querySelector.bind(document))
+          .writeBase();
+    
+    router.area(
+        "#message", 
+        function loading (name) {  
+            alert('Loading');  
+        }
+    );
+    
+    router.get('/random', function () {
+        alert(Math.random());
+        router.background({
+            area: '#message', 
+            method: 'GET', 
+            href: '/api/users'
+        }).done(function (response) {
+            response.area.innerHTML += response.result[0];
+        });
+    });
+    
+    router.get('/', function () {
+        console.log('Welcome!');
+    });
+    
+    router.get('/hello', function () {
+        alert("Hello World!");
+        
+    });
+    
+    router.post('/hello', function () {
+        alert("Hello World Post!");
+        
+    });
+    
+    router.get('/api/users', function () {
+        return ["Alexandre"];
+    });
+    
+    router.get('/name/*/*', function (sourceElement, name) {
+        console.log(sourceElement.nodeName);
+        
+    }).rel('author', function (sourceElement, params) {
+        sourceElement.innerHTML += "Hello " + params[0]+params[1];
+        
+    }).rel('alert', function (sourceElement, params) {
+        alert("Hello " + params[0]+params[1] + "!");
+        
+    });
+    
+    router.here();
+    
+    
+</script>
+<nav>
+    <h1>Links routed to alerts</h1>
+    <ul>
+        <li><a href=hello>Hello World!</a></li>
+        <li><a rel=author href=name/Alexandre/Web>Hello Alexandre! (contents)</a></li>
+        <li><a rel=alert href=name/Alexandre/Web2>Hello Alexandre! (alert)</a></li>
+        <li><a href=random>Hello Random!</a></li>
+        <li><a href=invalid>Hello 404!</a></li>
+    </ul>
+    <p id="message"><p>
+</nav>
+<form action=hello method=post>
+    <button type=submit>Hello from form!</button>
+</form>
