@@ -105,9 +105,85 @@ Concorde(Q);
             expect(myRouter.background({method: 'GET', href: '/users/alganet'})).to.be.equal(false);
         });
         it('should receive a provider for areas', function () {
-            var myRouter  = new Concorde.Router();
+            var myRouter = new Concorde.Router(),
+                handler  = function () {},
+                area     = myRouter.area("#foo", handler);
+                
+            expect(myRouter.areas).to.include.key('#foo');
+            expect(myRouter.areas['#foo']).to.be.equal(area);
+            expect(myRouter.areas['#foo'].whenLoading).to.be.equal(handler);
+        });
+        it('should receive a provider for areas with no loading function', function () {
+            var myRouter = new Concorde.Router(),
+                area     = myRouter.area("#foo");
+                
+            expect(myRouter.areas).to.include.key('#foo');
+            expect(myRouter.areas['#foo']).to.be.equal(area);
+            expect(myRouter.areas['#foo'].whenLoading).to.be.a("function");
+        });
+        it('should receive areas from a specific provider', function () {
+            var myRouter = new Concorde.Router(),
+                providerSpy = sinon.spy();
+                
+            myRouter.areasFrom(providerSpy);
             
+            expect(myRouter.areasProvider).to.be.equal(providerSpy);
+        });
+        it('should use areas from a specific provider', function (testDone) {
+            var myRouter = new Concorde.Router(),
+                providerSpy = sinon.spy();
+                
+            myRouter.areasFrom(providerSpy);
             myRouter.area("#foo");
+            myRouter.get('/foo', function (){ return 'fooresponse'; });
+            myRouter.background({method: 'GET', href: '/foo', area: '#foo'}).then(function (response) {
+                expect(myRouter.areasProvider).to.be.equal(providerSpy);
+                expect(providerSpy.calledOnce).to.be.equal(true);
+                expect(providerSpy.calledWithMatch('#foo')).to.be.equal(true);
+            }).done(testDone);
+        });
+        it('should bring areas on background area requests', function (testDone) {
+            var myRouter = new Concorde.Router(),
+                providerStub = sinon.stub().returns('areaelement'),
+                route,
+                query = {method: 'GET', href: '/foo/Bar', area: '#foo'};
+                
+            myRouter.areasFrom(providerStub);
+            myRouter.area("#foo");
+            myRouter.get('/foo/*', function (bar) { return 'fooresponse'; });
+            myRouter.background(query).then(function (response) {
+                expect(response.area).to.be.equal('areaelement');
+                expect(response.result).to.be.equal('fooresponse');
+                expect(response.params).to.contain("Bar");
+                expect(response.element).to.be.deep.equal(query);
+            }).done(testDone);
+        });
+        it('should bring areas on foreground area requests', function (testDone) {
+            var myRouter = new Concorde.Router(),
+                providerStub = sinon.stub().returns('areaelement'),
+                route,
+                query = {method: 'GET', href: '/foo/Bar', area: '#foo'},
+                myWindow = {
+                    addEventListener: sinon.spy(),
+                    document: {
+                        addEventListener: sinon.spy()
+                    },
+                    history: {
+                        pushState: sinon.spy()
+                    }
+                };
+            
+            myRouter.aimWindow(myWindow);
+            myRouter.areasFrom(providerStub);
+            myRouter.area("#foo");
+            myRouter.get('/foo/*', function (bar) { return 'fooresponse'; });
+            myRouter.foreground(query).then(function (response) {
+                expect(response.area).to.be.equal('areaelement');
+                expect(response.result).to.be.equal('fooresponse');
+                expect(response.params).to.contain("Bar");
+                expect(response.element).to.be.deep.equal(query);
+                expect(myWindow.history.pushState.calledOnce).to.be.equal(true);
+            }).done(testDone);
         });
     });
 })();

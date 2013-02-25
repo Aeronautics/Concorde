@@ -53,7 +53,7 @@
         return this;
     };
     Router.prototype.area = function (name, whenLoading) {
-        this.areas[name] = {
+        return this.areas[name] = {
             whenLoading: whenLoading || function () {}
         };
     };
