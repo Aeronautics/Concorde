@@ -24,18 +24,24 @@
     // Concorde.Router class
 
     function Router(virtualHost) {
-        var lastSlash;
+        var lastPiece;
         
         if (virtualHost) {
-            lastSlash = virtualHost.lastIndexOf("/");
-            if (virtualHost.length !== lastSlash) {
-                virtualHost = virtualHost.substr(0, lastSlash);
+            lastPiece = virtualHost.lastIndexOf("#");
+            if (-1 !== lastPiece) {
+                virtualHost = virtualHost.substr(0, lastPiece);
+            }
+            lastPiece = virtualHost.lastIndexOf("/");
+            if (-1 !== lastPiece) {
+                virtualHost = virtualHost.substr(0, lastPiece);
             }
         }
         
-        this.virtualHost = virtualHost;
-        this.routes      = new Array;
-        this.areas       = {};
+        this.virtualHost     = virtualHost;
+        this.routes          = new Array;
+        this.areas           = {};
+        this.pushCallback    = function () {};
+        this.replaceCallback = function () {};
     }
     Concorde.Router = Router;
     Router.compareRoutePatterns = function (a, b, sub) {
@@ -60,7 +66,7 @@
     Router.prototype.background = function (input) {
         var spec     = input.target || input,
             uri      = spec.href || spec.action,
-            relation = spec.method || spec.rel || 'GET',
+            relation = spec.href && spec.rel || spec.method || 'GET',
             element  = spec.element || spec,
             areaName = spec.area,
             matched  = this.matchRoutes(relation, uri),
@@ -70,7 +76,7 @@
             areas    = this.areas,
             provider = this.areasProvider,
             useArea  = areaName && provider && areas[areaName];
-        
+            
         if (false === matched) {
             return false;
         } else {
@@ -102,12 +108,12 @@
             title        = spec.title || null,
             areaName     = spec.area || null,
             targetWindow = this.targetWindow,
+            pushCallback = this.pushCallback,
             dispatched;
             
         if (!uri) {
             return;
         }
-        
         dispatched = this.background({
             method: relation.toUpperCase(), 
             href: uri, 
@@ -120,23 +126,58 @@
                 input.preventDefault();
             }
             return dispatched.then(function (response) {
-                targetWindow.history.pushState({routed: true}, title, uri);
+                pushCallback({routed: true}, title, uri);
                 return response;
             });
         }
     };
     Router.prototype.aimWindow = function (someWindow) {
-        var router = this;
+        var router = this,
+            doc;
         
         this.targetWindow = someWindow;
-        someWindow.addEventListener('popstate', function (event) {
-            var dispatched;
+        doc = someWindow.document;
+        doc.addEventListener('click', this.foreground.bind(this));
+        doc.addEventListener('submit', this.foreground.bind(this));
+        return this;
+    };
+    Router.prototype.pushesState = function () {
+        var targetWindow = this.targetWindow;
+        
+        targetWindow.addEventListener('popstate', function (event) {
             if (event.state) {
-                router.foreground({method: 'GET', href: someWindow.location.href}).done();
+                router.foreground({
+                    method: 'GET', 
+                    href: targetWindow.location.href
+                }).done();
             }
         });
-        someWindow.document.addEventListener('click', this.foreground.bind(this));
-        someWindow.document.addEventListener('submit', this.foreground.bind(this));
+        this.pushCallback = function (state, title, uri) {
+            targetWindow.history.pushState(state, title, uri);
+        };
+        this.replaceCallback = function (state, title, uri) {
+            targetWindow.history.replaceState(state, title, uri);
+        };
+        return this;
+    };
+    Router.prototype.hashesState = function (state, title, uri) {
+        var targetWindow = this.targetWindow,
+            virtualHost  = this.virtualHost,
+            hashFunction = function (state, title, uri) {
+                var newHash = uri.replace(virtualHost, '').substr(1),
+                    hash,
+                    element;
+                
+                if (newHash) {
+                    hash = ("!/" + newHash).replace('!/#', '');
+                    targetWindow.location.hash = hash.split('#').length > 1 
+                        ? hash.substr(hash.lastIndexOf('#') + 1)
+                        : hash;
+                }
+            };
+            
+        this.pushCallback = hashFunction;
+        this.replaceCallback = hashFunction;
         return this;
     };
     Router.prototype.get = function (pattern, callback) {
@@ -206,13 +247,16 @@
     };
     
     Router.prototype.here = function (currentLocation) {
-        var uri = !!currentLocation
+        var href = this.targetWindow.location.href,
+            uri = !!currentLocation
                     ? this.virtualHost + "/" + currentLocation
-                    : this.virtualHost + "/",
+                    : href.replace(this.virtualHost, '').replace('#!/', ''),
+            replaceCallback = this.replaceCallback,
             dispatched;
-
+            
+            
         if (!this.targetWindow.history.state) {
-            this.targetWindow.history.replaceState({routed: true}, null, uri);
+            replaceCallback({routed: true}, null, uri);
             dispatched = this.foreground({method: 'GET', href: uri});
             if (dispatched) {
                 dispatched.done();
@@ -264,12 +308,11 @@
         return matches;
     };
     Route.prototype.extractCatchAllPattern = function (pattern) {
-        var extra = Route.REGEX_CATCHALL;
+        var extra       = Route.REGEX_CATCHALL,
+            catchAllPos = pattern.indexOf(Route.CATCHALL_IDENTIFIER);
         
-        if (pattern.indexOf(Route.CATCHALL_IDENTIFIER) ===
-            pattern.length - Route.CATCHALL_IDENTIFIER.length
-        ) {
-            pattern = pattern.substr(0, -3);
+        if (catchAllPos === pattern.length - Route.CATCHALL_IDENTIFIER.length) {
+            pattern = pattern.substr(0, catchAllPos);
         } else {
             extra = '';
         }

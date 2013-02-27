@@ -58,7 +58,7 @@ Concorde(Q);
             windowSpy.history.replaceState = sinon.spy();
             windowSpy.history.pushState = sinon.spy();
             
-            myRouter.aimWindow(windowSpy);
+            myRouter.aimWindow(windowSpy).pushesState();
             myRouter.here("/bar");
             myRouter.on("GET", "/foo", function () {});
             myRouter.foreground({href: "/foo"}).done(function () {
@@ -93,6 +93,76 @@ Concorde(Q);
                 
             myRouter.background({method: 'GET', href: '/users/alganet'}).then(function (response) {
                 expect(response.result).to.be.equal(42);
+                expect(routeStub.calledOnce).to.be.equal(true);
+            }).done(testDone);
+        });
+        it('should be able to route catch-all requests', function (testDone) {
+            var myRouter  = new Concorde.Router(),
+                routeStub = sinon.stub().returns(42),
+                noRoute   = myRouter.on('GET', '/**', routeStub);
+                route     = myRouter.on('GET', '/users/*', routeStub),
+                
+            expect(myRouter.routes).to.contain(route);
+                
+            myRouter.background({method: 'GET', href: '/notusers/alganet'}).then(function (response) {
+                expect(response.result).to.be.equal(42);
+                expect(response.params).to.be.deep.equal(["/notusers/alganet"]);
+                expect(routeStub.calledOnce).to.be.equal(true);
+            }).done(testDone);
+        });
+        it('should be able to route mixed catch-all requests', function (testDone) {
+            var myRouter  = new Concorde.Router(),
+                routeStub = sinon.stub().returns(42),
+                noRoute   = myRouter.on('GET', '/family/**', routeStub);
+                route     = myRouter.on('GET', '/users/*', routeStub),
+                
+            expect(myRouter.routes).to.contain(route);
+                
+            myRouter.background({method: 'GET', href: '/family/alganet/something'}).then(function (response) {
+                expect(response.result).to.be.equal(42);
+                expect(response.params).to.be.deep.equal(["/alganet/something"]);
+                expect(routeStub.calledOnce).to.be.equal(true);
+            }).done(testDone);
+        });
+        it('should be able to route mixed catch-all/param requests', function (testDone) {
+            var myRouter  = new Concorde.Router(),
+                routeStub = sinon.stub().returns(42),
+                noRoute   = myRouter.on('GET', '/*/**', routeStub);
+                route     = myRouter.on('GET', '/users/*', routeStub),
+                
+            expect(myRouter.routes).to.contain(route);
+                
+            myRouter.background({method: 'GET', href: '/hello/alganet/something'}).then(function (response) {
+                expect(response.result).to.be.equal(42);
+                expect(response.params).to.be.deep.equal(["hello", "/alganet/something"]);
+                expect(routeStub.calledOnce).to.be.equal(true);
+            }).done(testDone);
+        });
+        it('should be able to route hash-only requests', function (testDone) {
+            var myRouter  = new Concorde.Router(),
+                routeStub = sinon.stub().returns(42),
+                noRoute   = myRouter.on('GET', '#foo/*', routeStub);
+                route     = myRouter.on('GET', '/users/*', routeStub),
+                
+            expect(myRouter.routes).to.contain(route);
+                
+            myRouter.background({method: 'GET', href: '#foo/bar'}).then(function (response) {
+                expect(response.result).to.be.equal(42);
+                expect(response.params).to.be.deep.equal(["bar"]);
+                expect(routeStub.calledOnce).to.be.equal(true);
+            }).done(testDone);
+        });
+        it('should be able to route hash-mixed requests', function (testDone) {
+            var myRouter  = new Concorde.Router(),
+                routeStub = sinon.stub().returns(42),
+                noRoute   = myRouter.on('GET', '/family/*#foo', routeStub);
+                route     = myRouter.on('GET', '/users/*', routeStub),
+                
+            expect(myRouter.routes).to.contain(route);
+                
+            myRouter.background({method: 'GET', href: '/family/alganet#foo'}).then(function (response) {
+                expect(response.result).to.be.equal(42);
+                expect(response.params).to.be.deep.equal(["alganet"]);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
@@ -173,7 +243,7 @@ Concorde(Q);
                     }
                 };
             
-            myRouter.aimWindow(myWindow);
+            myRouter.aimWindow(myWindow).pushesState();
             myRouter.areasFrom(providerStub);
             myRouter.area("#foo");
             myRouter.get('/foo/*', function (bar) { return 'fooresponse'; });
