@@ -7,12 +7,12 @@ Concorde(Q);
 'use strict';
 (function () {
     describe('Concorde.Router', function () {
-        it('should be created using the new keyword', function () {
+        it('Is created using new Concorde.Router()', function () {
             var myRouter = new Concorde.Router();
             
             expect(myRouter).to.be.an.instanceof(Concorde.Router);
         });
-        it('should aim to windows and understand its events', function () {
+        it('Can aim at windows using router.aimWindow(window)', function () {
             var windowSpy = {},
                 myRouter = new Concorde.Router();
                 
@@ -26,10 +26,11 @@ Concorde(Q);
             myRouter.aimWindow(windowSpy);
             
         });
-        it('should understand window clicks and form submissions', function () {
+        it('When aimed with router.aimWindow(window), binds to click and submit events', function () {
             var windowSpy = {},
                 myRouter = new Concorde.Router();
                 
+            windowSpy.location = {href: ''};
             windowSpy.history = {};
             windowSpy.document = {};
             windowSpy.addEventListener = sinon.spy();
@@ -47,10 +48,11 @@ Concorde(Q);
             });
             
         });
-        it('should understand window push states', function () {
+        it('Can push back route states when configured with router.pushesState()', function () {
             var windowSpy = {},
                 myRouter = new Concorde.Router();
                 
+            windowSpy.location = {href: ''};
             windowSpy.history = {};
             windowSpy.document = {};
             windowSpy.addEventListener = sinon.spy();
@@ -71,7 +73,7 @@ Concorde(Q);
             });
             
         });
-        it('should be able to route GET requests', function (testDone) {
+        it('Dispatches routes in background with router.background({method: "", href: ""})', function (testDone) {
             var myRouter  = new Concorde.Router(),
                 routeStub = sinon.stub().returns(42),
                 route     = myRouter.on('GET', '/users/', routeStub);
@@ -83,7 +85,7 @@ Concorde(Q);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('should be able to route pattern-based GET requests', function (testDone) {
+        it('Dispatches routes for patterns of URLs like /foo/*/bar when "*" is a parameter', function (testDone) {
             var myRouter  = new Concorde.Router(),
                 routeStub = sinon.stub().returns(42),
                 noRoute   = myRouter.on('GET', '/family/*', routeStub);
@@ -96,7 +98,7 @@ Concorde(Q);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('should be able to route catch-all requests', function (testDone) {
+        it('Dispatches routes for catch-all patterns that match until the end of the url with /something/** (two asterisks)', function (testDone) {
             var myRouter  = new Concorde.Router(),
                 routeStub = sinon.stub().returns(42),
                 noRoute   = myRouter.on('GET', '/**', routeStub);
@@ -110,7 +112,7 @@ Concorde(Q);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('should be able to route mixed catch-all requests', function (testDone) {
+        it('Does not get interference between catch-all routes and normal ones', function (testDone) {
             var myRouter  = new Concorde.Router(),
                 routeStub = sinon.stub().returns(42),
                 noRoute   = myRouter.on('GET', '/family/**', routeStub);
@@ -124,7 +126,7 @@ Concorde(Q);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('should be able to route mixed catch-all/param requests', function (testDone) {
+        it('Dispatches routes with mixed normal and catch-all parameters like /*/something/**', function (testDone) {
             var myRouter  = new Concorde.Router(),
                 routeStub = sinon.stub().returns(42),
                 noRoute   = myRouter.on('GET', '/*/**', routeStub);
@@ -138,7 +140,7 @@ Concorde(Q);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('should be able to route hash-only requests', function (testDone) {
+        it('Dispatches routes on hash changes, including patterns like #something/*', function (testDone) {
             var myRouter  = new Concorde.Router(),
                 routeStub = sinon.stub().returns(42),
                 noRoute   = myRouter.on('GET', '#foo/*', routeStub);
@@ -152,7 +154,7 @@ Concorde(Q);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('should be able to route hash-mixed requests', function (testDone) {
+        it('Dispatches routes with mixed normal parameters and hash like /something/*#foo', function (testDone) {
             var myRouter  = new Concorde.Router(),
                 routeStub = sinon.stub().returns(42),
                 noRoute   = myRouter.on('GET', '/family/*#foo', routeStub);
@@ -166,7 +168,7 @@ Concorde(Q);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('should return false when is impossible to match', function () {
+        it('Simply returns false when a dispatched route does not match', function () {
             var myRouter  = new Concorde.Router(),
                 routeStub = sinon.stub().returns(42),
                 noRoute   = myRouter.on('GET', '/family/*', routeStub)
@@ -174,7 +176,7 @@ Concorde(Q);
                 
             expect(myRouter.background({method: 'GET', href: '/users/alganet'})).to.be.equal(false);
         });
-        it('should receive a provider for areas', function () {
+        it('Start to handle logic routing areas when defined using router.area()', function () {
             var myRouter = new Concorde.Router(),
                 handler  = function () {},
                 area     = myRouter.area("#foo", handler);
@@ -183,7 +185,7 @@ Concorde(Q);
             expect(myRouter.areas['#foo']).to.be.equal(area);
             expect(myRouter.areas['#foo'].whenLoading).to.be.equal(handler);
         });
-        it('should receive a provider for areas with no loading function', function () {
+        it('Receives a function as the second parameter of router.area() to be called when that area is in loading process', function () {
             var myRouter = new Concorde.Router(),
                 area     = myRouter.area("#foo");
                 
@@ -191,7 +193,7 @@ Concorde(Q);
             expect(myRouter.areas['#foo']).to.be.equal(area);
             expect(myRouter.areas['#foo'].whenLoading).to.be.a("function");
         });
-        it('should receive areas from a specific provider', function () {
+        it('Stores the reference to an area provider given by router.areasFrom()', function () {
             var myRouter = new Concorde.Router(),
                 providerSpy = sinon.spy();
                 
@@ -199,7 +201,7 @@ Concorde(Q);
             
             expect(myRouter.areasProvider).to.be.equal(providerSpy);
         });
-        it('should use areas from a specific provider', function (testDone) {
+        it('Uses reference objects for areas that are provided by a function passed to router.areasFrom()', function (testDone) {
             var myRouter = new Concorde.Router(),
                 providerSpy = sinon.spy();
                 
@@ -212,7 +214,7 @@ Concorde(Q);
                 expect(providerSpy.calledWithMatch('#foo')).to.be.equal(true);
             }).done(testDone);
         });
-        it('should bring areas on background area requests', function (testDone) {
+        it('Brings a response.area object when some request contains an area: "identifier" key in background', function (testDone) {
             var myRouter = new Concorde.Router(),
                 providerStub = sinon.stub().returns('areaelement'),
                 route,
@@ -228,7 +230,7 @@ Concorde(Q);
                 expect(response.element).to.be.deep.equal(query);
             }).done(testDone);
         });
-        it('should bring areas on foreground area requests', function (testDone) {
+        it('Brings a response.area object when some request contains an area: "identifier" key in background off course', function (testDone) {
             var myRouter = new Concorde.Router(),
                 providerStub = sinon.stub().returns('areaelement'),
                 route,
@@ -254,6 +256,8 @@ Concorde(Q);
                 expect(response.element).to.be.deep.equal(query);
                 expect(myWindow.history.pushState.calledOnce).to.be.equal(true);
             }).done(testDone);
+        });
+        it('', function () {
         });
     });
 })();
