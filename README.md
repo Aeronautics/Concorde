@@ -3,6 +3,8 @@ Aeronautics.Concorde
 
 The Ultra-RESTful Microrouter for the Browser.
 
+[![Build Status](https://travis-ci.org/Aeronautics/Concorde.png)](https://travis-ci.org/Aeronautics/Concorde)
+
 Feature Guide
 -------------
 
@@ -28,6 +30,25 @@ In the sample above, if any user clicks something `href=/hello`, this route will
 be executed instead. The URL will change with a pushState event and the
 state of navigation is preserved.
 
+### States and Hashes
+
+Routes by default don't change the URL. You can easily enable reporting
+routes using two different configurations:
+
+Dispatching to the window pushState and understanding its state when appropriate:
+
+```js
+router.pushesState();
+```
+
+Dispatching to #!hashbang urls.
+
+```js
+router.hashesState();
+```
+
+### Advanced Routing
+
 But there is more! You can create routes for _patterns_ of URIs:
 
 ```js
@@ -41,6 +62,8 @@ display an alert with "Hello Alexandre, welcome to Hotel". URLs can have any
 number of parameters and if they are in the end of the url they're by default
 optional for matching.
 
+#### Routing POST and form submissions
+
 Routes for the POST method will be dispatched when a user submits the matching
 form:
 
@@ -52,6 +75,20 @@ router.post('/lorem', function () {
 
 The sample above will dispatch if an user submits a `<form action=/lorem method=post>`.
 
+#### Routing only hashes
+
+You can create routes for hashes starting with # instead of /
+
+```js
+router.get('#bla', function () {
+    alert('I am shown when the user sees #bla in the end of the URL');
+});
+```
+
+If some user clicks a `#bla` url when `router.hashesState()` is available, it
+runs the matched route whatever it is but the URL is preserved so the
+browser still scrolls to it and allows using of CSS `:target` pseudo-selector
+which is hard to polyfill.
 
 ### Relations
 
@@ -92,19 +129,31 @@ router.background({href: '/foo', method: 'GET'}).then(function(response) {
 });
 ```
 
-### Routing Areas
+### Routing Logic
 
-In order to make Concorde more efficient, aware of the connections and elements
-he should discard, abort and recycle, the Router allows definition of dynamic
-areas:
+In order to make Concorde more efficient, it can divide routing in logic areas:
 
 ```js
-router.area("#profile", function loading() {
-    // This is run when the #profile is loading for some reason
+var areas = {analytics: {}};
+router.areasFrom(function (areaName) {
+    return areas[areaName];
+});
+router.area("analytics", function loading() {
+    // This is run when some analytics route is loading
 });
 ```
 
-Areas play nice with route dispatches:
+Routes can be attached to any function, so you can attach routing areas to visual
+areas:
+
+```js
+router.areasFrom(document.querySelector);
+router.area("profile", function loading() {
+    // This is run when the profile is loading for some reason
+});
+```
+
+Visual areas play nice with route dispatches:
 
 ```js
 // Creates an "API" route for internal use
@@ -125,7 +174,6 @@ result are now available for being processed!
 
 ### Roadmap
 
-  - #hash routing (`router.hash("foo", handler);` and `router.get(/*...*/).hash("bar", handler);`)
   - `.request()` and `.graceful()` for handling external XHR requests (similar to `.background()`)
   - `router.area(/*...*/).media(" (some media: query) ")` support
   - Connection pool for fixed areas

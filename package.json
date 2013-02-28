@@ -11,11 +11,12 @@
   },
   "devDependencies": {
     "mocha": "~1.8.1",
+    "mocha-phantomjs": "~2.0.0",
     "sinon": "~1.6.0",
     "chai": "~1.5.0"
   },
   "scripts": {
-    "test": "mocha --globals Concorde -r sinon -r chai -r q test/spec"
+    "test": "mocha -R spec --globals Concorde -r sinon -r chai -r q test/spec && mocha-phantomjs -R spec test/index.html"
   },
   "repository": {
     "type": "git",

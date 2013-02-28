@@ -257,7 +257,5 @@ Concorde(Q);
                 expect(myWindow.history.pushState.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('', function () {
-        });
     });
 })();

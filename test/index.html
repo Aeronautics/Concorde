@@ -26,8 +26,13 @@
           ui: 'bdd',
           globals: ['Concorde'],
           timeout: 1500
-        })
-        mocha.run();
+        });
+        if (window.mochaPhantomJS) {
+            console.log("===========================\nNow running on phantomjs...\n===========================");
+            mochaPhantomJS.run(); 
+        } else {
+            mocha.run();
+        }
     </script>
 </body>
 </html>
