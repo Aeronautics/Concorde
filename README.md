@@ -27,8 +27,7 @@ router.get('/hello', function () {
 ```
 
 In the sample above, if any user clicks something `href=/hello`, this route will
-be executed instead. The URL will change with a pushState event and the
-state of navigation is preserved.
+be executed instead. 
 
 ### States and Hashes
 
@@ -46,6 +45,8 @@ Dispatching to #!hashbang urls.
 ```js
 router.hashesState();
 ```
+
+Both approaches maintain URL states and history. `hashesState` is experimental.
 
 ### Advanced Routing
 
@@ -89,6 +90,8 @@ If some user clicks a `#bla` url when `router.hashesState()` is available, it
 runs the matched route whatever it is but the URL is preserved so the
 browser still scrolls to it and allows using of CSS `:target` pseudo-selector
 which is hard to polyfill.
+
+Hash-only routes does not interfere with #!hash/bang states.
 
 ### Relations
 
