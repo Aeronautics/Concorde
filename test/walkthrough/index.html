@@ -7,7 +7,7 @@
     
     router.aimWindow(window)
           .hashesState()
-          .areasFrom(document.querySelector.bind(document))
+          .areasFrom(document.querySelectorAll.bind(document))
           .writeBase();
     
     router.area(
@@ -16,6 +16,8 @@
             alert('Loading');  
         }
     );
+    
+    router.area('a');
     
     router.get('/#test', function () {
         alert('Yay test');
@@ -66,7 +68,14 @@
         
     });
     
+    
     router.here();
+          
+    router.progressive({method: 'GET', action: '/Foo.txt', area: 'a'}).then(function (response) {
+        Array.prototype.forEach.call(response.area, function (a) {
+            a.innerHTML += response.result;
+        });
+    });
     
     
 </script>
@@ -77,7 +86,7 @@
         <li><a rel=author href=name/Alexandre/Web>Hello Alexandre! (contents)</a></li>
         <li><a rel=alert href=name/Alexandre/Web2>Hello Alexandre! (alert)</a></li>
         <li><a href=random>Hello Random!</a></li>
-        <li><a href=invalid>Hello 404!</a></li>
+        <li><a href=http://localhost:40404>Hello 404!</a></li>
         <li><a href="#test">Hash</a></li>
         <li><a href="random#extra">Hash after random</a></li>
     </ul>

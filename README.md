@@ -132,6 +132,46 @@ router.background({href: '/foo', method: 'GET'}).then(function(response) {
 });
 ```
 
+### HTTP 
+
+Concorde has a simple deferred HTTP client:
+
+```js
+Concorde.HTTP({href: '/something'}).then(function (response) {
+    console.log(response);
+});
+```
+
+The router is also bound to this component:
+
+```js
+router.request({href: '/something'}).then(function (response) {
+    console.log(response);
+});
+```
+
+### Graceful and Progressive requests
+
+Graceful and progressive requests allow mixing internal routing with XHR:
+
+```js
+// Dispatches a synthetic foreground request to /foo
+router.progressive({href: '/foo', method: 'GET'}).then(function(response) {
+   // Foreground dispatches change the browser current state via pushState
+   // Chooses between internal route and XHR automatically
+});
+```
+
+```js
+// Dispatches a synthetic background request to /foo
+router.graceful({href: '/foo', method: 'GET'}).then(function(response) {
+   // Background dispatches do the same as foreground, except for the
+   // URL change
+   // Chooses between internal route and XHR automatically
+});
+```
+
+
 ### Routing Logic
 
 In order to make Concorde more efficient, it can divide routing in logic areas:
@@ -177,7 +217,6 @@ result are now available for being processed!
 
 ### Roadmap
 
-  - `.request()` and `.graceful()` for handling external XHR requests (similar to `.background()`)
   - `router.area(/*...*/).media(" (some media: query) ")` support
   - Connection pool for fixed areas
 

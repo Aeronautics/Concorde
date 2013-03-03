@@ -20,7 +20,38 @@
     function Concorde() {
         return concordeLib;
     }
+    
+    
+    // HTTP class
+    
+    function HTTP(input) {
+        var xhr,
+            spec = Router.parseSpec(input),
+            response = Q.defer();
+        
+        if (this.xhrProto) {
+            xhr = new this.xhrProto;
+        } else if (XMLHttpRequest) {
+            xhr = new XMLHttpRequest;
+        }
+              
+        xhr.withCredentials    = true;  
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4 || "number" !== typeof(xhr.status)) {
+                return;
+            }
+            return '2' === String.substring(xhr.status, 0, 1)
+                 ? response.resolve(xhr.response, xhr)
+                 : response.reject(xhr.responseText.substr(4), xhr);
+            
+        };
+        xhr.open(spec.relation, spec.uri, true);
+        xhr.send();
+        return response.promise;     
+    };
+    Concorde.HTTP = HTTP;
 
+    
     // Concorde.Router class
 
     function Router(virtualHost) {
@@ -63,70 +94,94 @@
             whenLoading: whenLoading || function () {}
         };
     };
-    Router.prototype.background = function (input) {
-        var spec     = input.target || input,
-            uri      = spec.href || spec.action,
-            relation = spec.href && spec.rel || spec.method || 'GET',
-            element  = spec.element || spec,
-            areaName = spec.area,
-            matched  = this.matchRoutes(relation, uri),
+    Router.prototype.progressive = function (input) {
+        return this.foreground(input, true);
+    };
+    Router.prototype.graceful = function (input) {
+        return this.background(input, true);
+    };
+    Router.prototype.background = function (input, graceful) {
+        var spec     = Router.parseSpec(input),
+            matched  = this.matchRoutes(spec.relation, spec.uri),
             route    = matched[0],
             params   = matched[1],
             area     = null,
             areas    = this.areas,
             provider = this.areasProvider,
-            useArea  = areaName && provider && areas[areaName];
+            useArea  = spec.areaName && provider && areas[spec.areaName],
+            request;
             
-        if (false === matched) {
-            return false;
-        } else {
-            return Q.fcall(
-                this.callRouteCallback.bind(this), 
-                route,
-                element,
-                params
-            ).then(function (result) {
-                if (useArea) {
-                    areas[areaName].whenLoading(areaName);
-                    area = provider(areaName);
+            if (matched) {
+                request = Q.fcall(
+                   this.callRouteCallback.bind(this), 
+                   route,
+                   spec.element,
+                   params
+                );
+            } else {
+                if (graceful) {
+                    request = router.request(input);
+                } else {
+                    return false;
                 }
-                return {
-                    element: element, 
-                    params: params, 
-                    result: result, 
-                    area: area
-                };
-            });
-        }
+            }
+            
+        return request.then(function (result) {
+            if (useArea) {
+                areas[spec.areaName].whenLoading(spec.areaName);
+                area = provider(spec.areaName);
+            }
+            return {
+                element: spec.element, 
+                params: params, 
+                result: result || '', 
+                area: area
+            };
+        });
     };
     
-    Router.prototype.foreground = function (input) {
-        var spec         = input.target || input,
-            uri          = spec.href || spec.action || spec.src,
-            relation     = spec.method || spec.rel || 'GET',
-            element      = spec.element || spec,
-            title        = spec.title || null,
-            areaName     = spec.area || null,
+    Router.parseSpec = function (input) {
+        var spec     = input.target || input;
+        return {
+            uri:      spec.href || spec.action,
+            relation: spec.href && spec.rel || spec.method || 'GET',
+            element:  spec.element || spec,
+            title:    spec.title || null,
+            areaName: spec.area
+        };
+    };
+    
+    Router.prototype.request = function (input) {
+        var spec = Router.parseSpec(input);
+        
+        input.href = this.virtualHost + spec.uri;
+        return Concorde.HTTP(input);
+    };
+    
+    Router.prototype.foreground = function (input, graceful) {
+        var spec         = Router.parseSpec(input),
             targetWindow = this.targetWindow,
             pushCallback = this.pushCallback,
+            virtualHost  = this.virtualHost,
             dispatched;
             
-        if (!uri) {
+        if (!spec.uri) {
             return;
         }
         dispatched = this.background({
-            method: relation.toUpperCase(), 
-            href: uri, 
-            element: element,
-            area: areaName
-        });
+            method: spec.relation.toUpperCase(), 
+            href: spec.uri, 
+            element: spec.element,
+            area: spec.areaName
+        }, graceful);
         
         if (dispatched) {
             if (input.preventDefault) {
                 input.preventDefault();
             }
             return dispatched.then(function (response) {
-                pushCallback({routed: true}, title, uri);
+                spec.uri = virtualHost + (spec.uri.replace(virtualHost, ''));
+                pushCallback({routed: true}, spec.title, spec.uri);
                 return response;
             });
         }
@@ -164,7 +219,7 @@
         var targetWindow = this.targetWindow,
             virtualHost  = this.virtualHost,
             hashFunction = function (state, title, uri) {
-                var newHash = uri.replace(virtualHost, '').substr(1),
+                var newHash = uri.replace(virtualHost, '').replace(/^\/+/, ''),
                     hash,
                     element;
                 
@@ -247,13 +302,12 @@
     };
     
     Router.prototype.here = function (currentLocation) {
-        var href = this.targetWindow.location.href,
+        var hash = this.targetWindow.location.hash,
             uri = !!currentLocation
                     ? this.virtualHost + "/" + currentLocation
-                    : href.replace(this.virtualHost, '').replace('#!/', ''),
+                    : hash.replace(this.virtualHost, '').replace('#!/', ''),
             replaceCallback = this.replaceCallback,
             dispatched;
-            
             
         if (!this.targetWindow.history.state) {
             replaceCallback({routed: true}, null, uri);

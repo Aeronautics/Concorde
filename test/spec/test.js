@@ -168,11 +168,10 @@ Concorde(Q);
                 expect(routeStub.calledOnce).to.be.equal(true);
             }).done(testDone);
         });
-        it('Simply returns false when a dispatched route does not match', function () {
+        it('Returns false when a dispatched route does not match', function () {
             var myRouter  = new Concorde.Router(),
-                routeStub = sinon.stub().returns(42),
-                noRoute   = myRouter.on('GET', '/family/*', routeStub)
-            
+                routeStub = sinon.stub().returns(false),
+                noRoute   = myRouter.on('GET', '/family/*', routeStub);
                 
             expect(myRouter.background({method: 'GET', href: '/users/alganet'})).to.be.equal(false);
         });
