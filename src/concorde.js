@@ -21,7 +21,6 @@
         return concordeLib;
     }
     
-    
     // HTTP class
     
     function HTTP(input) {
@@ -29,8 +28,8 @@
             spec = Router.parseSpec(input),
             response = Q.defer();
         
-        if (this.xhrProto) {
-            xhr = new this.xhrProto;
+        if (HTTP.xhrProto) {
+            xhr = new HTTP.xhrProto;
         } else if (XMLHttpRequest) {
             xhr = new XMLHttpRequest;
         }
@@ -100,7 +99,7 @@
     Router.prototype.graceful = function (input) {
         return this.background(input, true);
     };
-    Router.prototype.background = function (input, graceful) {
+    Router.prototype.background = function (input, graceful, graceForeground) {
         var spec     = Router.parseSpec(input),
             matched  = this.matchRoutes(spec.relation, spec.uri),
             route    = matched[0],
@@ -120,7 +119,7 @@
                 );
             } else {
                 if (graceful) {
-                    request = router.request(input);
+                    request = router.request(input, graceForeground);
                 } else {
                     return false;
                 }
@@ -134,7 +133,7 @@
             return {
                 element: spec.element, 
                 params: params, 
-                result: result || '', 
+                result: result || '',
                 area: area
             };
         });
@@ -151,11 +150,14 @@
         };
     };
     
-    Router.prototype.request = function (input) {
+    Router.prototype.request = function (input, foreground) {
         var spec = Router.parseSpec(input);
         
         input.href = this.virtualHost + spec.uri;
-        return Concorde.HTTP(input);
+        return Concorde.HTTP(
+            input, 
+            spec.areaName || (foreground && 'foreground')
+        );
     };
     
     Router.prototype.foreground = function (input, graceful) {
@@ -167,20 +169,22 @@
             
         if (!spec.uri) {
             return;
+        } else {
+            spec.uri = spec.uri.replace(this.virtualHost + '/', '');
         }
         dispatched = this.background({
             method: spec.relation.toUpperCase(), 
             href: spec.uri, 
             element: spec.element,
             area: spec.areaName
-        }, graceful);
+        }, graceful, true);
         
         if (dispatched) {
             if (input.preventDefault) {
                 input.preventDefault();
             }
             return dispatched.then(function (response) {
-                spec.uri = virtualHost + (spec.uri.replace(virtualHost, ''));
+                spec.uri = virtualHost + spec.uri;
                 pushCallback({routed: true}, spec.title, spec.uri);
                 return response;
             });
@@ -245,16 +249,6 @@
         var route = new Concorde.Route(relation.toUpperCase(), pattern, callback);
         route.router = this;
         this.routes.push(route);
-        return route;
-    };
-    
-    Router.prototype.matchRoutes = function (relation, uri) {
-        var howManyRoutes = this.routes.length,
-            i,
-            route,
-            path,
-            matches;
-            
         this.routes.sort(function (a, b) {
             var pi = Route.PARAM_IDENTIFIER,
             a = a.pattern;
@@ -268,7 +262,16 @@
                 return 1;
             }
         });
-        
+        return route;
+    };
+    
+    Router.prototype.matchRoutes = function (relation, uri) {
+        var howManyRoutes = this.routes.length,
+            i,
+            route,
+            path,
+            matches;
+            
         path = uri.replace(this.virtualHost, '');
         
         for (i = 0; i <= howManyRoutes; i++) {
@@ -305,7 +308,7 @@
         var hash = this.targetWindow.location.hash,
             uri = !!currentLocation
                     ? this.virtualHost + "/" + currentLocation
-                    : hash.replace(this.virtualHost, '').replace('#!/', ''),
+                    : hash.replace(this.virtualHost, '').replace('#!', ''),
             replaceCallback = this.replaceCallback,
             dispatched;
             

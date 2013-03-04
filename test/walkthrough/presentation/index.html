@@ -1,0 +1,97 @@
+<!doctype html>
+<title>Boas Práticas São Melhores Juntas</title>
+<meta charset=utf-8>
+<link href="../../lib/normalize.css" rel=stylesheet>
+<script src="../../lib/q.js"></script>
+<script src="../../lib/mousetrap.js"></script>
+<script src="../../../src/concorde.js"></script>
+<style>
+
+  body {
+    font-family: Ubuntu Light;
+    color: #333;
+  }
+  hgroup {
+    letter-spacing: -0.13em;
+  }
+  section {
+    display: none;
+    text-align: center;
+    position: absolute;
+    top: 30%;
+    width: 100%;
+  }
+  section:first-child {
+    display: block;
+  }
+</style>
+<script>
+
+  var router = new Concorde.Router(window.location.href),
+      nav = function (rel) {
+          return document.querySelector('nav a[rel=' + rel + ']');
+      };
+  
+  router.aimWindow(window)
+        .hashesState()
+        .writeBase();
+  
+  router.get('#slides/*', function (element, params) {
+    var id = parseInt(params[0]),
+        slides = document.querySelectorAll("article section"),
+        nextSlide = Math.min(slides.length - 1, id + 1),
+        prevSlide = Math.max(0, id - 1);
+        
+    Array.prototype.forEach.call(slides, function (slide, n) {
+        slide.style.display = (n === id) ? "block" : "none";
+    });
+        
+    nav('prev').setAttribute("href", '#slides/' + prevSlide);
+    nav('next').setAttribute("href", '#slides/' + nextSlide);
+  }).rel('home', function (el) {
+    setTimeout(
+        confirm('Restart Presentation?') 
+            ? window.location.reload 
+            : void(0), 
+        100
+    );
+  }).rel('next').rel('prev');
+  
+  Mousetrap.bind(['home'], function () {
+    router.foreground({target: nav('home')});
+  });
+  
+  Mousetrap.bind(['pageup', 'left'], function () {
+    router.foreground({target: nav('prev')});
+  });
+  
+  Mousetrap.bind(['pagedown', 'right'], function () {
+    router.foreground({target: nav('next')});
+  });
+  
+  router.here();
+</script>
+<body>
+  <nav>
+    <a rel=home href="#slides/0">Home</a>
+    <a rel=next href="#slides/1">Next</a>
+    <a rel=prev href="#slides/0">Previous</a>
+  </nav>
+  <article>
+      <section>
+          <hgroup>
+            <h1>Boas Práticas São Melhores Juntas</h1>
+            <h2>Alexandre Gomes Gaigalas</h2>
+          </hgroup>
+      </section>
+      <section>
+      a
+      </section>
+      <section>
+      b
+      </section>
+      <section>
+      c
+      </section>
+  </article>
+</body>

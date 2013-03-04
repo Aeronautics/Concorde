@@ -75,6 +75,11 @@
         Array.prototype.forEach.call(response.area, function (a) {
             a.innerHTML += response.result;
         });
+    });   
+    router.progressive({method: 'GET', action: '/Foo.txt', area: 'a'}).then(function (response) {
+        Array.prototype.forEach.call(response.area, function (a) {
+            a.innerHTML += response.result;
+        });
     });
     
     
