@@ -21,7 +21,7 @@
     top: 30%;
     width: 100%;
   }
-  section:first-child {
+  section:target {
     display: block;
   }
 </style>
@@ -36,18 +36,18 @@
         .hashesState()
         .writeBase();
   
-  router.get('#slides/*', function (element, params) {
+  router.get('/', function () {
+    router.foreground({href: '#slide-0'});
+  });
+  
+  router.get('#slide-*', function (element, params) {
     var id = parseInt(params[0]),
-        slides = document.querySelectorAll("article section"),
-        nextSlide = Math.min(slides.length - 1, id + 1),
+        slides = document.querySelectorAll("article section").length,
+        nextSlide = Math.min(slides - 1, id + 1),
         prevSlide = Math.max(0, id - 1);
-        
-    Array.prototype.forEach.call(slides, function (slide, n) {
-        slide.style.display = (n === id) ? "block" : "none";
-    });
-        
-    nav('prev').setAttribute("href", '#slides/' + prevSlide);
-    nav('next').setAttribute("href", '#slides/' + nextSlide);
+        console.log(1);
+    nav('prev').setAttribute("href", '#slide-' + prevSlide);
+    nav('next').setAttribute("href", '#slide-' + nextSlide);
   }).rel('home', function (el) {
     setTimeout(
         confirm('Restart Presentation?') 
@@ -69,28 +69,28 @@
     router.foreground({target: nav('next')});
   });
   
-  router.here();
+  router.here('');
 </script>
 <body>
   <nav>
-    <a rel=home href="#slides/0">Home</a>
-    <a rel=next href="#slides/1">Next</a>
-    <a rel=prev href="#slides/0">Previous</a>
+    <a rel=home href="#slide-0">Home</a>
+    <a rel=next href="#slide-1">Next</a>
+    <a rel=prev href="#slide-0">Previous</a>
   </nav>
   <article>
-      <section>
+      <section id=slide-0>
           <hgroup>
             <h1>Boas Práticas São Melhores Juntas</h1>
             <h2>Alexandre Gomes Gaigalas</h2>
           </hgroup>
       </section>
-      <section>
+      <section id=slide-1>
       a
       </section>
-      <section>
+      <section id=slide-2>
       b
       </section>
-      <section>
+      <section id=slide-3>
       c
       </section>
   </article>

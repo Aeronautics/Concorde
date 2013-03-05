@@ -25,7 +25,7 @@
     
     function HTTP(input) {
         var xhr,
-            spec = Router.parseSpec(input),
+            spec = Router.spec(input),
             response = Q.defer();
         
         if (HTTP.xhrProto) {
@@ -53,36 +53,30 @@
     
     // Concorde.Router class
 
-    function Router(virtualHost) {
+    function Router(base) {
         var lastPiece;
         
-        if (virtualHost) {
-            lastPiece = virtualHost.lastIndexOf("#");
+        if (base) {
+            lastPiece = base.lastIndexOf("#");
             if (-1 !== lastPiece) {
-                virtualHost = virtualHost.substr(0, lastPiece);
+                base = base.substr(0, lastPiece);
             }
-            lastPiece = virtualHost.lastIndexOf("/");
+            lastPiece = base.lastIndexOf("/");
             if (-1 !== lastPiece) {
-                virtualHost = virtualHost.substr(0, lastPiece);
+                base = base.substr(0, lastPiece);
             }
         }
         
-        this.virtualHost     = virtualHost;
-        this.routes          = new Array;
-        this.areas           = {};
-        this.pushCallback    = function () {};
-        this.replaceCallback = function () {};
+        this.base      = base;
+        this.routes    = new Array;
+        this.areas     = {};
+        this.onPush    = function () {};
+        this.onReplace = function () {};
     }
     Concorde.Router = Router;
-    Router.compareRoutePatterns = function (a, b, sub) {
-        return Router.comparePatternSimilarity(a, b)
-            || Router.compareOcurrences(a, b, sub);
-    };
-    Router.comparePatternSimilarity = function(a, b) {
-        return 0 === a.indexOf(b) || a === Route.CATCH_ALL_IDENTIFIER;
-    };
-    Router.compareOcurrences = function (a, b, sub) {
-        return a.match(sub) < b.match(sub);
+    Router.howSpecific = function (a, b, sub) {
+        return 0 === a.indexOf(b) || a === T_CA
+            || a.match(sub) < b.match(sub);
     };
     Router.prototype.areasFrom = function (areasProvider) {
         this.areasProvider = areasProvider;
@@ -100,8 +94,8 @@
         return this.background(input, true);
     };
     Router.prototype.background = function (input, graceful, graceForeground) {
-        var spec     = Router.parseSpec(input),
-            matched  = this.matchRoutes(spec.relation, spec.uri),
+        var spec     = Router.spec(input),
+            matched  = this.find(spec.relation, spec.uri),
             route    = matched[0],
             params   = matched[1],
             area     = null,
@@ -112,7 +106,7 @@
             
             if (matched) {
                 request = Q.fcall(
-                   this.callRouteCallback.bind(this), 
+                   this.dispatch.bind(this), 
                    route,
                    spec.element,
                    params
@@ -139,7 +133,7 @@
         });
     };
     
-    Router.parseSpec = function (input) {
+    Router.spec = function (input) {
         var spec     = input.target || input;
         return {
             uri:      spec.href || spec.action,
@@ -151,9 +145,9 @@
     };
     
     Router.prototype.request = function (input, foreground) {
-        var spec = Router.parseSpec(input);
+        var spec = Router.spec(input);
         
-        input.href = this.virtualHost + spec.uri;
+        input.href = this.base + spec.uri;
         return Concorde.HTTP(
             input, 
             spec.areaName || (foreground && 'foreground')
@@ -161,16 +155,16 @@
     };
     
     Router.prototype.foreground = function (input, graceful) {
-        var spec         = Router.parseSpec(input),
-            targetWindow = this.targetWindow,
-            pushCallback = this.pushCallback,
-            virtualHost  = this.virtualHost,
+        var spec   = Router.spec(input),
+            win    = this.win,
+            onPush = this.onPush,
+            base   = this.base,
             dispatched;
             
         if (!spec.uri) {
             return;
         } else {
-            spec.uri = spec.uri.replace(this.virtualHost + '/', '');
+            spec.uri = spec.uri.replace(this.base + '/', '');
         }
         dispatched = this.background({
             method: spec.relation.toUpperCase(), 
@@ -184,8 +178,8 @@
                 input.preventDefault();
             }
             return dispatched.then(function (response) {
-                spec.uri = virtualHost + spec.uri;
-                pushCallback({routed: true}, spec.title, spec.uri);
+                spec.uri = base + spec.uri;
+                onPush({routed: true}, spec.title, spec.uri);
                 return response;
             });
         }
@@ -194,49 +188,49 @@
         var router = this,
             doc;
         
-        this.targetWindow = someWindow;
+        this.win = someWindow;
         doc = someWindow.document;
         doc.addEventListener('click', this.foreground.bind(this));
         doc.addEventListener('submit', this.foreground.bind(this));
         return this;
     };
     Router.prototype.pushesState = function () {
-        var targetWindow = this.targetWindow;
+        var win = this.win;
         
-        targetWindow.addEventListener('popstate', function (event) {
+        win.addEventListener('popstate', function (event) {
             if (event.state) {
                 router.foreground({
                     method: 'GET', 
-                    href: targetWindow.location.href
+                    href: win.location.href
                 }).done();
             }
         });
-        this.pushCallback = function (state, title, uri) {
-            targetWindow.history.pushState(state, title, uri);
+        this.onPush = function (state, title, uri) {
+            win.history.pushState(state, title, uri);
         };
-        this.replaceCallback = function (state, title, uri) {
-            targetWindow.history.replaceState(state, title, uri);
+        this.onReplace = function (state, title, uri) {
+            win.history.replaceState(state, title, uri);
         };
         return this;
     };
     Router.prototype.hashesState = function (state, title, uri) {
-        var targetWindow = this.targetWindow,
-            virtualHost  = this.virtualHost,
+        var win = this.win,
+            base  = this.base,
             hashFunction = function (state, title, uri) {
-                var newHash = uri.replace(virtualHost, '').replace(/^\/+/, ''),
+                var newHash = uri.replace(base, '').replace(/^\/+/, ''),
                     hash,
                     element;
                 
                 if (newHash) {
                     hash = ("!/" + newHash).replace('!/#', '');
-                    targetWindow.location.hash = hash.split('#').length > 1 
+                    win.location.hash = hash.split('#').length > 1 
                         ? hash.substr(hash.lastIndexOf('#') + 1)
                         : hash;
                 }
             };
             
-        this.pushCallback = hashFunction;
-        this.replaceCallback = hashFunction;
+        this.onPush = hashFunction;
+        this.onReplace = hashFunction;
         return this;
     };
     Router.prototype.get = function (pattern, callback) {
@@ -250,13 +244,13 @@
         route.router = this;
         this.routes.push(route);
         this.routes.sort(function (a, b) {
-            var pi = Route.PARAM_IDENTIFIER,
+            var pi = T_P,
             a = a.pattern;
             b = b.pattern;
             
-            if (Router.compareRoutePatterns(a, b, '/')) {
+            if (Router.howSpecific(a, b, '/')) {
                 return 1;
-            } else if (Router.compareRoutePatterns(a, b, pi)) {
+            } else if (Router.howSpecific(a, b, pi)) {
                 return -1;
             } else {
                 return 1;
@@ -265,14 +259,14 @@
         return route;
     };
     
-    Router.prototype.matchRoutes = function (relation, uri) {
+    Router.prototype.find = function (relation, uri) {
         var howManyRoutes = this.routes.length,
             i,
             route,
             path,
             matches;
             
-        path = uri.replace(this.virtualHost, '');
+        path = uri.replace(this.base, '');
         
         for (i = 0; i <= howManyRoutes; i++) {
             route = this.routes[i];
@@ -287,10 +281,10 @@
         return false;
     };
     
-    Router.prototype.callRouteCallback = function (route, element, params) {
+    Router.prototype.dispatch = function (route, element, params) {
         var callPromise = Q.fcall(route.callback, element, params);
         if (route.parent) {
-            callPromise = this.callRouteCallback(
+            callPromise = this.dispatch(
                 route.parent, 
                 element, 
                 params
@@ -300,20 +294,21 @@
     };
     
     Router.prototype.writeBase = function () {
-        this.targetWindow.document.write("<BASE href='" + this.virtualHost + "/' />");
+        this.win.document.write("<BASE href='" + this.base + "/' />");
         return this;
     };
     
     Router.prototype.here = function (currentLocation) {
-        var hash = this.targetWindow.location.hash,
+        var hash = this.win.location.hash,
             uri = !!currentLocation
-                    ? this.virtualHost + "/" + currentLocation
-                    : hash.replace(this.virtualHost, '').replace('#!', ''),
-            replaceCallback = this.replaceCallback,
+                    ? this.base + "/" + currentLocation
+                    : hash.replace(this.base, '').replace('#!', ''),
+            onReplace = this.onReplace,
             dispatched;
             
-        if (!this.targetWindow.history.state) {
-            replaceCallback({routed: true}, null, uri);
+        uri = uri || '/';
+        if (!this.win.history.state) {
+            onReplace({routed: true}, null, uri);
             dispatched = this.foreground({method: 'GET', href: uri});
             if (dispatched) {
                 dispatched.done();
@@ -324,22 +319,25 @@
     // Concorde.Route class
     
     function Route(relation, pattern, callback) {
-        this.relation       = relation;
-        this.pattern        = pattern;
-        this.callback       = callback;
-        this.matchPattern   = pattern;
-        this.replacePattern = pattern;
-        this.createRegexPatterns(pattern);
+        this.relation = relation;
+        this.pattern  = pattern;
+        this.callback = callback;
+        this.replacer = pattern;
+        this.matcher  = fixOptional(pattern);
+        this.expr     = createRegex(pattern);
     }
     Concorde.Route = Route;
-    Route.CATCHALL_IDENTIFIER = '/**';
-    Route.PARAM_IDENTIFIER = '/*';
-    Route.QUOTED_PARAM_IDENTIFIER = '/\*';
-    Route.REGEX_CATCHALL = '(/.*)?';
-    Route.REGEX_SINGLE_PARAM = '/([^/]+)';
-    Route.REGEX_ENDING_PARAM = '/\(\[\^/\]\+\)';
-    Route.REGEX_OPTIONAL_PARAM = '(?:/([^/]+))?';
-    Route.REGEX_INVALID_OPTIONAL_PARAM = '\(\?\:/\(\[\^/\]\+\)\)\?/';
+    var T_CA = '/**'; // Catch-all
+    var T_P = '/*';   // Param 
+    var T_HL = '#';   // Hash Locator
+    var T_HP = '-*';  // Hash Param 
+    var T_QP = '/\*'; // Quoted Param
+    var T_RCA = '(/.*)?';   // Regex for Catch-all
+    var T_RP = '/([^/]+)';  // Regex for Param
+    var T_RHP = '-([^/]+)'; // Regex for Hash Param
+    var T_RPE = '/\(\[\^/\]\+\)'; // Regex for Ending Param
+    var T_RPO = '(?:/([^/]+))?';  // Regex for Optional Param
+    var T_RPI = '\(\?\:/\(\[\^/\]\+\)\)\?/'; // Regex for Optional Ending
     Route.prototype.match = function (relation, uri) {
         var paramsMatch;
         if (relation !== this.relation) {
@@ -349,7 +347,7 @@
         if (uri === this.pattern) {
             return true;
         }
-        paramsMatch = new RegExp(this.matchRegex);
+        paramsMatch = new RegExp(this.expr);
         paramsMatch = paramsMatch.exec(uri);
         if (paramsMatch) {
             return paramsMatch.splice(1);
@@ -360,64 +358,63 @@
         route.parent = this;
         return this;
     };
-    Route.prototype.extractParams = function (uri) {
-        var matches = new RegExp(this.matchPattern).match(uri);
-        return matches;
-    };
-    Route.prototype.extractCatchAllPattern = function (pattern) {
-        var extra       = Route.REGEX_CATCHALL,
-            catchAllPos = pattern.indexOf(Route.CATCHALL_IDENTIFIER);
+    function fixOptional (matchPattern) {
+        if (matchPattern.indexOf(T_RP) ===
+            matchPattern.length - T_RP.length
+        ) {
+            matchPattern = matchPattern.replace(
+                new RegExp(T_RPE),
+                T_RPO
+            );
+        }
         
-        if (catchAllPos === pattern.length - Route.CATCHALL_IDENTIFIER.length) {
+        matchPattern = matchPattern.replace(
+            new RegExp(T_RPI),
+            T_RP + '/'
+        );
+        
+        return matchPattern;
+    };
+    function extractCatchAll(pattern) {
+        var extra       = T_RCA,
+            catchAllPos = pattern.indexOf(T_CA);
+        
+        if (catchAllPos === pattern.length - T_CA.length) {
             pattern = pattern.substr(0, catchAllPos);
         } else {
             extra = '';
         }
         
-        pattern = pattern.replace(
-            Route.CATCHALL_IDENTIFIER,
-            Route.PARAM_IDENTIFIER
-        );
+        pattern = pattern.replace(T_CA, T_P);
         
         return [pattern, extra];
     };
-    Route.prototype.fixOptionalParams = function (matchPattern) {
-        if (matchPattern.indexOf(Route.REGEX_SINGLE_PARAM) ===
-            matchPattern.length - Route.REGEX_SINGLE_PARAM.length
-        ) {
-            matchPattern = matchPattern.replace(
-                new RegExp(Route.REGEX_ENDING_PARAM),
-                Route.REGEX_OPTIONAL_PARAM
-            );
-        }
-        
-        matchPattern = matchPattern.replace(
-            new RegExp(Route.REGEX_INVALID_OPTIONAL_PARAM),
-            Route.REGEX_SINGLE_PARAM + '/'
-        );
-        
-        return matchPattern;
-    };
-    Route.prototype.createRegexPatterns = function (pattern) {
+    function createRegex(pattern) {
         var matchPattern,
             replacePattern,
             extracted,
-            extra;
+            extra,
+            hashLocator;
             
-        pattern        = pattern.replace(/[ /]$/, '');
-        extracted      = this.extractCatchAllPattern(pattern);
-        extra          = extracted[1];
-        pattern        = extracted[0];
-        matchPattern   = pattern.replace(
-            Route.QUOTED_PARAM_IDENTIFIER, 
-            Route.REGEX_SINGLE_PARAM
-        ).replace(
-            Route.PARAM_IDENTIFIER, 
-            Route.REGEX_SINGLE_PARAM
-        );
-        replacePattern    = pattern.replace(Route.PARAM_IDENTIFIER, '%s');
-        this.matchRegex   = new RegExp("^" + matchPattern + extra + "$");
-        this.matchPattern = this.fixOptionalParams(matchPattern); 
+        pattern           = pattern.replace(/[ /]$/, '');
+        extracted         = extractCatchAll(pattern);
+        extra             = extracted[1];
+        pattern           = extracted[0];
+        hashLocator       = pattern.lastIndexOf(T_HL);
+        if (-1 !== hashLocator) {
+            matchPattern  = pattern.substr(0, hashLocator)
+                                   .replace(T_QP, T_RP)
+                                   .replace(T_P, T_RP);
+            matchPattern += pattern.substr(hashLocator)
+                                   .replace(T_QP, T_RP)
+                                   .replace(T_P, T_RP)
+                                   .replace(T_HP, T_RHP);
+        } else {
+            matchPattern = pattern.replace(T_QP, T_RP)
+                                   .replace(T_P, T_RP);
+        }
+        replacePattern   = pattern.replace(T_P, '%s');
+        return new RegExp("^" + matchPattern + extra + "$");
     };
 
     return Concorde;
