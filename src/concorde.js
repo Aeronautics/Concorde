@@ -5,7 +5,7 @@
         module.exports = concordeFn(require('q'));
     } else if (typeof define === "function") {
         define(concordeFn);
-    } else if (typeof Q === "object") {
+    } else if (typeof Q !== "undefined") {
         Concorde = concordeFn(Q);
     }
 
